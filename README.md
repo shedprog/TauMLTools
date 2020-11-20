@@ -161,6 +161,46 @@ ShuffleMerge --cfg TauML/Analysis/config/testing_inputs.cfg --input tuples-v2 --
              --n-threads 12 --disabled-branches "trainingWeight"
 ```
 
+#### ShuffleMergeSpectral (Alternative Shuffle and merge)
+
+This step represents alternative Shuffle and Merge procedure that aims to minimize usage of physicical memory as well as provide direct control over the shape of final (pt,eta) spectrum.
+
+To generate the specturum histograms of a dataset, run:
+```
+CreateSpectralHists --output "spectrum_file.root" \
+                    --input-dir "path/to/dataset/dir" \
+                    --pt-hist "n_bins_pt, pt_min, pt_max" \
+                    --eta-hist "n_bins_eta, |eta|_min, |eta|_max" \
+                    --n-threads 1
+```
+
+Alternatively, if one wants to process several datasets the following python script can be used (parameters of pt and eta binning to be hardcoded in the script):
+```
+python Analysis/python/CreateSpectralHists.py --input /path/to/input/dir/ \
+                                              --output /path/to/output/dir/ \
+                                              --filter ".*(DY).*" \
+                                              --rewrite
+```
+
+After spectrums are created for all datasets, the final procedure of Shuffle and Merge can be performed with:
+```
+ShuffleMergeSpectral --cfg Analysis/config/2018/training_inputs_MC.cfg
+                     --input /eos/cms/store/group/phys_tau/TauML/prod_2018_v1/full_tuples
+                     --output <path_to_output_file.root>
+                     --mode MergeAll
+                     --n-threads 1
+                     --disabled-branches "trainingWeight, tauType"
+                     --input-spec /afs/cern.ch/work/m/myshched/public/root-tuple-v2-hists
+                     --pt-bins "20, 30, 40, 50, 60, 70, 80, 90, 100, 1000"
+                     --eta-bins "0., 0.6, 1.2, 1.8, 2.4"
+                     --tau-ratio "jet:1, e:1, mu:1, tau:1"
+                     --exp-disbalance 100
+                     --start-entry 0.0 --end-entry 0.0008
+```
+- the last pt bin is taken as a high pt region, all entries from it are taken without rejection.
+- `--tau-ratio "jet:1, e:1, mu:1, tau:1"` defines proportion of TauTypes in final root-tuple.
+- `--start-entry 0.0 --end-entry 0.0008` defines from which percentage by which entries will be read within every input root file.
+
 #### Validation
 A validation can be run on shuffled samples to ensure that different parts of the training set have compatible distributions.
 To run the validation tool, a ROOT version greater or equal to 6.16 is needed:
@@ -176,11 +216,11 @@ python TauMLTools/Production/scripts/validation_tool.py  --input input_directory
                                                          --n_threads n_threads \
                                                          --legend > results.txt
 ```
-The *id_json*  (*group_id_json*) points to a json file containing the list of datasets names (dataset group names) and their hash values, used to identify them inside the shuffled ROOT tuples. These files are needed in order to create a unique identifier which can be handled by ROOT. These files are produced at the shuffle and merge step. 
+The *id_json*  (*group_id_json*) points to a json file containing the list of datasets names (dataset group names) and their hash values, used to identify them inside the shuffled ROOT tuples. These files are needed in order to create a unique identifier which can be handled by ROOT. These files are produced at the shuffle and merge step.
 The script will create the directory "output_directory" containing the results of the test.
 Validation is run on the following ditributions with a Kolmogorov-Smirnov test:
 
-- dataset_id, dataset_group_id, lepton_gen_match, sampleType 
+- dataset_id, dataset_group_id, lepton_gen_match, sampleType
 - tau_pt and tau_eta for each bin of the previous
 - dataset_id for each bin of dataset_group_id
 
